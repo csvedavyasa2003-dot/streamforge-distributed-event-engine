@@ -181,3 +181,9 @@ body {
   color: var(--danger);
   font-weight: 700;
 }
+.topology-panel {
+  height: 500px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
