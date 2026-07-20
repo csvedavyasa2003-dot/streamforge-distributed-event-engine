@@ -187,3 +187,44 @@ body {
   border: 1px solid var(--border);
   border-radius: 10px;
 }
+
+.alerts-page__title {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  margin-bottom: 16px;
+}
+
+.alerts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.alert-card {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.alert-card--critical {
+  border-color: var(--danger);
+}
+
+.alert-card--warning {
+  border-color: var(--warn);
+}
+
+.alert-card__title {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.alert-card__meta {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  font-family: var(--font-mono);
+}
