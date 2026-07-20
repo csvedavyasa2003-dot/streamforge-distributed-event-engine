@@ -27,3 +27,30 @@ export const mockRecentEvents = [
   { truckId: 1003, temp: 26, timestamp: '10:05:02' },
   { truckId: 1004, temp: 29, timestamp: '10:05:03' },
 ]
+
+export const mockAlerts = [
+  {
+    id: 1,
+    truckId: 1002,
+    temp: 31,
+    threshold: 30,
+    timestamp: '10:05:02',
+    severity: 'warning',
+  },
+  {
+    id: 2,
+    truckId: 1047,
+    temp: 34,
+    threshold: 30,
+    timestamp: '10:04:41',
+    severity: 'critical',
+  },
+  {
+    id: 3,
+    truckId: 1090,
+    temp: 32,
+    threshold: 30,
+    timestamp: '10:03:58',
+    severity: 'warning',
+  },
+]
