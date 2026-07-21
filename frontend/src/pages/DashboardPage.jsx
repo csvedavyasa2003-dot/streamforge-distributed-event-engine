@@ -19,6 +19,7 @@ export default function DashboardPage() {
         <StatCard
           label="Alerts"
           value={mockStats.alertCount}
+          icon="🚨"
           accent={mockStats.alertCount > 0 ? 'warn' : 'default'}
         />
       </div>
