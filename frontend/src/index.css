@@ -298,3 +298,67 @@ body {
   letter-spacing: 0.08em;
   margin: 0;
 }
+
+.intro-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  opacity: 1;
+  transition: opacity 0.4s ease;
+}
+
+.intro-wrapper--fade {
+  opacity: 0;
+}
+
+.intro-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.intro-loader__truck {
+  font-size: 3rem;
+  animation: intro-rotate 1.1s linear infinite;
+}
+
+.intro-loader__title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text);
+}
+
+.intro-loader__subtitle {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+}
+
+@keyframes intro-rotate {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  50% {
+    transform: rotate(180deg) scale(1.15);
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+  }
+}
+
+.app-shell--enter {
+  animation: app-fade-in 0.5s ease;
+}
+
+@keyframes app-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
