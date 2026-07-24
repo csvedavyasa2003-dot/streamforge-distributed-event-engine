@@ -9,3 +9,4 @@ export default function StatCard({ label, value, icon, accent = 'default' }) {
     </div>
   )
 }
+

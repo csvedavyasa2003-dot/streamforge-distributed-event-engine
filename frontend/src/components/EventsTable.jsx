@@ -1,6 +1,10 @@
+import { useInView } from '../hooks/useInView.js'
+
 export default function EventsTable({ events }) {
+  const [ref, isInView] = useInView({ threshold: 0.3 })
+
   return (
-    <div className="table-panel">
+    <div ref={ref} className={`table-panel ${isInView ? 'reveal--visible' : 'reveal'}`}>
       <div className="table-panel__title">Recent Events</div>
       <table className="events-table">
         <thead>

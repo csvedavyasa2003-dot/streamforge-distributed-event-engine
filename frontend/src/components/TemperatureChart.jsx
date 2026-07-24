@@ -7,13 +7,16 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts'
+import { useInView } from '../hooks/useInView.js'
 
 export default function TemperatureChart({ data }) {
+  const [ref, isInView] = useInView({ threshold: 0.3 })
+
   return (
-    <div className="chart-panel">
+    <div ref={ref} className={`chart-panel ${isInView ? 'reveal--visible' : 'reveal'}`}>
       <div className="chart-panel__title">Average Temperature (Live Window)</div>
       <ResponsiveContainer width="100%" height={240}>
-        <LineChart data={data}>
+        <LineChart data={isInView ? data : []}>
           <CartesianGrid stroke="#232c3a" strokeDasharray="3 3" />
           <XAxis dataKey="time" stroke="#8a97a8" fontSize={12} />
           <YAxis stroke="#8a97a8" fontSize={12} unit="°C" />
@@ -31,6 +34,9 @@ export default function TemperatureChart({ data }) {
             stroke="#3ddc97"
             strokeWidth={2}
             dot={false}
+            isAnimationActive={true}
+            animationDuration={1200}
+            animationEasing="ease-out"
           />
         </LineChart>
       </ResponsiveContainer>
