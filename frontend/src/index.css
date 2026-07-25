@@ -462,3 +462,71 @@ body {
   opacity: 1;
   transform: translateY(0);
 }
+
+/* ---------- Kafka Partitions ---------- */
+
+.partition-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  transition: border-color 0.2s ease;
+}
+
+.partition-panel:hover {
+  border-color: #2e3a4c;
+}
+
+.partition-panel__title {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  margin-bottom: 12px;
+}
+
+.partition-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+}
+
+.partition-table th {
+  text-align: left;
+  color: var(--text-dim);
+  font-weight: 500;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.partition-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.partition-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.partition-badge--active {
+  background: rgba(52, 211, 153, 0.15);
+  color: var(--success);
+}
+
+.partition-badge--rebalancing {
+  background: rgba(251, 191, 36, 0.15);
+  color: var(--warn);
+}
+
+.partition-badge--down {
+  background: rgba(251, 113, 133, 0.15);
+  color: var(--danger);
+}
+
+.lag-high {
+  color: var(--warn);
+  font-weight: 700;
+}
