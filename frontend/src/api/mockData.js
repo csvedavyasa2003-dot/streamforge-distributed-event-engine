@@ -1,6 +1,6 @@
 export const mockStats = {
-  totalTrucks: 50000,
-  eventsPerSecond: 150000,
+  totalTrucks: 1000000,
+  eventsPerSecond: 30000,
   averageTemp: 28,
   alertCount: 3,
 }
@@ -53,4 +53,10 @@ export const mockAlerts = [
     timestamp: '10:03:58',
     severity: 'warning',
   },
+]
+export const mockPartitions = [
+  { id: 0, assignedWorker: 'Worker 1', status: 'active', lag: 12 },
+  { id: 1, assignedWorker: 'Worker 2', status: 'active', lag: 8 },
+  { id: 2, assignedWorker: 'Worker 3', status: 'active', lag: 45 },
+  { id: 3, assignedWorker: 'Worker 4', status: 'rebalancing', lag: 0 },
 ]
