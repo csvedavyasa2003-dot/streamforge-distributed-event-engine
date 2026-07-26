@@ -30,7 +30,7 @@ export default function ThroughputChart({ data }) {
           />
           <Bar
             dataKey="eventsPerSec"
-            fill="#a78bfa"
+            fill="#FFCA95"
             radius={[4, 4, 0, 0]}
             isAnimationActive={true}
             animationDuration={900}
