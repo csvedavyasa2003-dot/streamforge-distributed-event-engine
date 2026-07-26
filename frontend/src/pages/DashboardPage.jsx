@@ -2,12 +2,14 @@ import StatCard from '../components/StatCard.jsx'
 import WorkerStatus from '../components/WorkerStatus.jsx'
 import PartitionStatus from '../components/PartitionStatus.jsx'
 import TemperatureChart from '../components/TemperatureChart.jsx'
+import ThroughputChart from '../components/ThroughputChart.jsx'
 import EventsTable from '../components/EventsTable.jsx'
 import {
   mockStats,
   mockWorkers,
   mockPartitions,
   mockTemperatureSeries,
+  mockThroughputSeries,
   mockRecentEvents,
 } from '../api/mockData.js'
 
@@ -40,6 +42,11 @@ export default function DashboardPage() {
       <section className="dashboard-section">
         <h2 className="section-title">Temperature Trend</h2>
         <TemperatureChart data={mockTemperatureSeries} />
+      </section>
+
+      <section className="dashboard-section">
+        <h2 className="section-title">Processing Throughput</h2>
+        <ThroughputChart data={mockThroughputSeries} />
       </section>
 
       <section className="dashboard-section">

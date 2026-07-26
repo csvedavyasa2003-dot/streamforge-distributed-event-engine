@@ -60,3 +60,11 @@ export const mockPartitions = [
   { id: 2, assignedWorker: 'Worker 3', status: 'active', lag: 45 },
   { id: 3, assignedWorker: 'Worker 4', status: 'rebalancing', lag: 0 },
 ]
+export const mockThroughputSeries = [
+  { time: '10:00', eventsPerSec: 132000 },
+  { time: '10:01', eventsPerSec: 145000 },
+  { time: '10:02', eventsPerSec: 151000 },
+  { time: '10:03', eventsPerSec: 138000 },
+  { time: '10:04', eventsPerSec: 162000 },
+  { time: '10:05', eventsPerSec: 150000 },
+]
