@@ -1,6 +1,6 @@
 export const mockStats = {
   totalTrucks: 1000000,
-  eventsPerSecond: 30000,
+  eventsPerSecond: 50000,
   averageTemp: 28,
   alertCount: 3,
 }
@@ -39,7 +39,7 @@ export const mockAlerts = [
   },
   {
     id: 2,
-    truckId: 1047,
+    truckId: 1060,
     temp: 34,
     threshold: 30,
     timestamp: '10:04:41',
@@ -64,7 +64,7 @@ export const mockThroughputSeries = [
   { time: '10:00', eventsPerSec: 132000 },
   { time: '10:01', eventsPerSec: 145000 },
   { time: '10:02', eventsPerSec: 151000 },
-  { time: '10:03', eventsPerSec: 138000 },
+  { time: '10:03', eventsPerSec: 188000 },
   { time: '10:04', eventsPerSec: 162000 },
   { time: '10:05', eventsPerSec: 150000 },
 ]
