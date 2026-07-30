@@ -531,3 +531,94 @@ body {
   color: var(--warn);
   font-weight: 700;
 }
+
+/* ---------- Topology enhancements ---------- */
+
+.topology-panel {
+  position: relative;
+}
+
+.topology-panel .react-flow__node {
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.topology-panel .react-flow__node:hover {
+  transform: scale(1.05);
+}
+
+.node-detail-panel {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 260px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-glow);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  animation: node-panel-in 0.2s ease;
+  z-index: 10;
+}
+
+@keyframes node-panel-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.node-detail-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.node-detail-panel__title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.node-detail-panel__close {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.node-detail-panel__close:hover {
+  color: var(--text);
+}
+
+.node-detail-panel__desc {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  line-height: 1.4;
+  margin: 0 0 12px;
+}
+
+.node-detail-panel__stats {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.node-detail-panel__stat {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  font-family: var(--font-mono);
+}
+
+.node-detail-panel__stat-label {
+  color: var(--text-dim);
+}
+
+.node-detail-panel__stat-value {
+  color: var(--text);
+  font-weight: 600;
+}

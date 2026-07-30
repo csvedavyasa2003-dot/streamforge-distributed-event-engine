@@ -1,3 +1,60 @@
+export const nodeDetails = {
+  producer: {
+    title: 'Truck Producer',
+    description: 'Simulates 10 trucks sending sensor telemetry every 10 seconds.',
+    stats: [
+      { label: 'Trucks Simulated', value: '10' },
+      { label: 'Interval', value: '10s' },
+      { label: 'Topic', value: 'truck-events' },
+    ],
+  },
+  kafka: {
+    title: 'Kafka Broker',
+    description: 'Message broker that ingests and buffers the incoming truck event stream.',
+    stats: [
+      { label: 'Topic', value: 'truck-events' },
+      { label: 'Port', value: 'localhost:9092' },
+      { label: 'Status', value: 'Running' },
+    ],
+  },
+  worker1: {
+    title: 'Worker 1',
+    description: 'Consumes events, computes rolling temperature stats and alert flags.',
+    stats: [
+      { label: 'Status', value: 'Healthy' },
+      { label: 'Consumer Group', value: 'truck-consumer-group' },
+    ],
+  },
+  worker2: {
+    title: 'Worker 2',
+    description: 'Consumes events, computes rolling temperature stats and alert flags.',
+    stats: [{ label: 'Status', value: 'Healthy' }],
+  },
+  worker3: {
+    title: 'Worker 3',
+    description: 'Consumes events, computes rolling temperature stats and alert flags.',
+    stats: [{ label: 'Status', value: 'Healthy' }],
+  },
+  worker4: {
+    title: 'Worker 4',
+    description: 'Consumes events, computes rolling temperature stats and alert flags.',
+    stats: [{ label: 'Status', value: 'Rebalancing' }],
+  },
+  fastapi: {
+    title: 'FastAPI',
+    description: 'Serves aggregated stats and events to the dashboard via REST endpoints.',
+    stats: [
+      { label: 'Port', value: 'localhost:8000' },
+      { label: 'Status', value: 'In development' },
+    ],
+  },
+  dashboard: {
+    title: 'Dashboard',
+    description: 'This React app — visualizes live fleet stats, worker health, and alerts.',
+    stats: [{ label: 'Framework', value: 'React + Vite' }],
+  },
+}
+
 export const topologyNodes = [
   {
     id: 'producer',
