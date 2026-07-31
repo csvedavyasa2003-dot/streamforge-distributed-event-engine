@@ -622,3 +622,44 @@ body {
   color: var(--text);
   font-weight: 600;
 }
+
+
+
+@media (max-width: 768px) {
+  .app-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 16px 18px;
+  }
+
+  .app-nav {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .nav-btn {
+    margin: 0;
+    flex: 1;
+    text-align: center;
+  }
+
+  .app-main {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .brand__tagline {
+    display: none;
+  }
+
+  .brand__text {
+    font-size: 1.15rem;
+  }
+
+  .brand__icon-wrap {
+    width: 36px;
+    height: 36px;
+  }
+}
