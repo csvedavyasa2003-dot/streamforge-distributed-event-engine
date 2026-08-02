@@ -663,3 +663,23 @@ body {
     height: 36px;
   }
 }
+@media (max-width: 480px) {
+  .stat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-card__value {
+    font-size: 1.6rem;
+  }
+}
+@media (max-width: 600px) {
+  .table-panel,
+  .partition-panel {
+    overflow-x: auto;
+  }
+
+  .events-table,
+  .partition-table {
+    min-width: 480px;
+  }
+}
