@@ -683,3 +683,27 @@ body {
     min-width: 480px;
   }
 }
+
+@media (max-width: 600px) {
+  .topology-panel {
+    height: 360px;
+  }
+
+  .node-detail-panel {
+    width: calc(100% - 32px);
+    right: 16px;
+    left: 16px;
+  }
+}
+@media (max-width: 480px) {
+  .alerts-page__toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .alerts-summary {
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+}
