@@ -707,3 +707,15 @@ body {
     gap: 16px;
   }
 }
+@media (max-width: 480px) {
+  .alerts-page__toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .alerts-summary {
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+}
