@@ -1,4 +1,5 @@
 import json
+import requests
 from confluent_kafka import Consumer
 
 conf = {
@@ -10,6 +11,9 @@ conf = {
 consumer = Consumer(conf)
 
 consumer.subscribe(['truck-events'])
+
+API_URL = "http://localhost:8000/events/"
+
 # Worker state
 total_events = 0
 total_temperature = 0
@@ -54,7 +58,22 @@ try:
             print("\n🚨 HIGH TEMPERATURE ALERT!")
             print(f"Truck ID    : {event['truck_id']}")
             print(f"Temperature : {temperature} °C")
-        
+
+        # Save event to the database via FastAPI
+        payload = {
+            "truck_id": str(event["truck_id"]),
+            "temperature": event["temperature"],
+            "humidity": event["humidity"],
+            "speed": event["speed"],
+            "gps_location": json.dumps(event["gps_location"]),
+            "fuel_level": event["fuel_level"],
+            "timestamp": event["timestamp"],
+        }
+
+        try:
+            requests.post(API_URL, json=payload, timeout=2)
+        except requests.exceptions.RequestException as e:
+            print("Failed to save event to API:", e)
 
         print("\nReceived Event")
         print(f"Truck ID     : {event['truck_id']}")
@@ -79,4 +98,3 @@ except KeyboardInterrupt:
 
 finally:
     consumer.close()
-    
