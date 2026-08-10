@@ -1,5 +1,6 @@
 import json
 from confluent_kafka import Consumer
+import state_store
 
 conf = {
     'bootstrap.servers': 'localhost:9092',
@@ -37,6 +38,7 @@ try:
 
         temperature = event["temperature"]
 
+        truck_id = event["truck_id"]
         total_events += 1
         total_temperature += temperature
 
@@ -54,6 +56,7 @@ try:
             print("\n🚨 HIGH TEMPERATURE ALERT!")
             print(f"Truck ID    : {event['truck_id']}")
             print(f"Temperature : {temperature} °C")
+            state_store.record_reading(truck_id, temperature)
         
 
         print("\nReceived Event")
