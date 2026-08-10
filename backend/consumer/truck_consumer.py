@@ -1,4 +1,7 @@
 import json
+from datetime import datetime, timezone
+from collections import defaultdict
+
 import requests
 from confluent_kafka import Consumer
 
@@ -9,22 +12,57 @@ conf = {
 }
 
 consumer = Consumer(conf)
-
 consumer.subscribe(['truck-events'])
 
 API_URL = "http://localhost:8000/events/"
+WINDOW_SECONDS = 300  # 5 minutes
 
-# Worker state
-total_events = 0
-total_temperature = 0
-
-highest_temperature = float("-inf")
-lowest_temperature = float("inf")
-
-alert_count = 0
+# windows[truck_id][window_start_epoch] = list of temperatures
+windows = defaultdict(lambda: defaultdict(list))
+# tracks which windows have already been flushed, so we don't save twice
+flushed_windows = set()
 
 
-print("Listening for truck events... Press Ctrl+C to stop.")
+def get_window_start(timestamp_str):
+    """Round an ISO timestamp down to the nearest 5-minute boundary."""
+    dt = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+    epoch = int(dt.timestamp())
+    window_start = epoch - (epoch % WINDOW_SECONDS)
+    return window_start
+
+
+def flush_window(truck_id, window_start, temps):
+    """Save a completed window's average temperature to the database."""
+    key = (truck_id, window_start)
+    if key in flushed_windows:
+        return
+    flushed_windows.add(key)
+
+    avg_temp = sum(temps) / len(temps)
+    window_time = datetime.fromtimestamp(window_start, tz=timezone.utc).isoformat()
+
+    print(f"\n📊 WINDOW CLOSED — Truck {truck_id}")
+    print(f"   Window start : {window_time}")
+    print(f"   Events       : {len(temps)}")
+    print(f"   Avg temp     : {avg_temp:.2f}°C")
+
+    payload = {
+        "truck_id": str(truck_id),
+        "temperature": round(avg_temp, 2),
+        "humidity": 0,
+        "speed": 0,
+        "gps_location": "windowed-aggregate",
+        "fuel_level": 0,
+        "timestamp": window_time,
+    }
+
+    try:
+        requests.post(API_URL, json=payload, timeout=2)
+    except requests.exceptions.RequestException as e:
+        print("Failed to save windowed result:", e)
+
+
+print("Listening for truck events (windowed mode)... Press Ctrl+C to stop.")
 
 try:
     while True:
@@ -38,63 +76,28 @@ try:
             continue
 
         event = json.loads(msg.value().decode("utf-8"))
-
+        truck_id = event["truck_id"]
         temperature = event["temperature"]
+        timestamp = event["timestamp"]
 
-        total_events += 1
-        total_temperature += temperature
+        window_start = get_window_start(timestamp)
+        windows[truck_id][window_start].append(temperature)
 
-        if temperature > highest_temperature:
-            highest_temperature = temperature
+        # Check if any of this truck's older windows are now "complete"
+        # (i.e., we've moved past them based on the latest event's timestamp)
+        current_window = window_start
+        for w_start in list(windows[truck_id].keys()):
+            if w_start < current_window:
+                flush_window(truck_id, w_start, windows[truck_id][w_start])
 
-        if temperature < lowest_temperature:
-            lowest_temperature = temperature
-
-        average_temperature = total_temperature / total_events
-
-        if temperature > 35:
-            alert_count += 1
-
-            print("\n🚨 HIGH TEMPERATURE ALERT!")
-            print(f"Truck ID    : {event['truck_id']}")
-            print(f"Temperature : {temperature} °C")
-
-        # Save event to the database via FastAPI
-        payload = {
-            "truck_id": str(event["truck_id"]),
-            "temperature": event["temperature"],
-            "humidity": event["humidity"],
-            "speed": event["speed"],
-            "gps_location": json.dumps(event["gps_location"]),
-            "fuel_level": event["fuel_level"],
-            "timestamp": event["timestamp"],
-        }
-
-        try:
-            requests.post(API_URL, json=payload, timeout=2)
-        except requests.exceptions.RequestException as e:
-            print("Failed to save event to API:", e)
-
-        print("\nReceived Event")
-        print(f"Truck ID     : {event['truck_id']}")
-        print(f"Temperature  : {event['temperature']} °C")
-        print(f"Humidity     : {event['humidity']} %")
-        print(f"Speed        : {event['speed']} km/h")
-        print(f"Fuel Level   : {event['fuel_level']} %")
-        print(f"GPS          : {event['gps_location']}")
-        print(f"Timestamp    : {event['timestamp']}")
-
-
-        print("\n----- Worker Statistics -----")
-        print(f"Total Events        : {total_events}")
-        print(f"Average Temperature : {average_temperature:.2f} °C")
-        print(f"Highest Temperature : {highest_temperature} °C")
-        print(f"Lowest Temperature  : {lowest_temperature} °C")
-        print(f"High Temp Alerts    : {alert_count}")
-        print("-----------------------------")
+        print(f"Truck {truck_id} | Temp {temperature}°C | Window {window_start} | "
+              f"Events in current window: {len(windows[truck_id][window_start])}")
 
 except KeyboardInterrupt:
-    print("\nConsumer stopped.")
+    print("\nConsumer stopped. Flushing remaining windows...")
+    for truck_id, truck_windows in windows.items():
+        for w_start, temps in truck_windows.items():
+            flush_window(truck_id, w_start, temps)
 
 finally:
     consumer.close()
