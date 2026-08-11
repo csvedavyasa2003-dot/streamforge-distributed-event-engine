@@ -4,6 +4,7 @@ from collections import defaultdict
 
 import requests
 from confluent_kafka import Consumer
+from rocksdict import Rdict
 
 conf = {
     'bootstrap.servers': 'localhost:9092',
@@ -17,26 +18,53 @@ consumer.subscribe(['truck-events'])
 API_URL = "http://localhost:8000/events/"
 WINDOW_SECONDS = 300  # 5 minutes
 
-# windows[truck_id][window_start_epoch] = list of temperatures
-windows = defaultdict(lambda: defaultdict(list))
-# tracks which windows have already been flushed, so we don't save twice
-flushed_windows = set()
+# RocksDB state store — persists window data to disk, survives restarts
+db = Rdict("rocksdb_state")
+
+# Tracks which windows have already been flushed (also persisted)
+flushed_db = Rdict("rocksdb_flushed")
 
 
 def get_window_start(timestamp_str):
-    """Round an ISO timestamp down to the nearest 5-minute boundary."""
     dt = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
     epoch = int(dt.timestamp())
-    window_start = epoch - (epoch % WINDOW_SECONDS)
-    return window_start
+    return epoch - (epoch % WINDOW_SECONDS)
 
 
-def flush_window(truck_id, window_start, temps):
-    """Save a completed window's average temperature to the database."""
-    key = (truck_id, window_start)
-    if key in flushed_windows:
+def make_key(truck_id, window_start):
+    return f"{truck_id}:{window_start}"
+
+
+def add_event_to_window(truck_id, window_start, temperature):
+    key = make_key(truck_id, window_start)
+    temps = db.get(key, [])
+    temps.append(temperature)
+    db[key] = temps
+    return temps
+
+
+def get_windows_for_truck(truck_id):
+    """Returns all window_start values currently stored for a given truck."""
+    prefix = f"{truck_id}:"
+    result = []
+    for key in db.keys():
+        if key.startswith(prefix):
+            window_start = int(key.split(":")[1])
+            result.append(window_start)
+    return result
+
+
+def flush_window(truck_id, window_start):
+    key = make_key(truck_id, window_start)
+
+    if flushed_db.get(key):
         return
-    flushed_windows.add(key)
+
+    temps = db.get(key)
+    if not temps:
+        return
+
+    flushed_db[key] = True
 
     avg_temp = sum(temps) / len(temps)
     window_time = datetime.fromtimestamp(window_start, tz=timezone.utc).isoformat()
@@ -45,6 +73,7 @@ def flush_window(truck_id, window_start, temps):
     print(f"   Window start : {window_time}")
     print(f"   Events       : {len(temps)}")
     print(f"   Avg temp     : {avg_temp:.2f}°C")
+    print(f"   (persisted via RocksDB)")
 
     payload = {
         "truck_id": str(truck_id),
@@ -61,8 +90,11 @@ def flush_window(truck_id, window_start, temps):
     except requests.exceptions.RequestException as e:
         print("Failed to save windowed result:", e)
 
+    # Clean up the flushed window's raw data from the state store
+    del db[key]
 
-print("Listening for truck events (windowed mode)... Press Ctrl+C to stop.")
+
+print("Listening for truck events (windowed mode, RocksDB-backed)... Press Ctrl+C to stop.")
 
 try:
     while True:
@@ -81,23 +113,23 @@ try:
         timestamp = event["timestamp"]
 
         window_start = get_window_start(timestamp)
-        windows[truck_id][window_start].append(temperature)
+        temps = add_event_to_window(truck_id, window_start, temperature)
 
-        # Check if any of this truck's older windows are now "complete"
-        # (i.e., we've moved past them based on the latest event's timestamp)
-        current_window = window_start
-        for w_start in list(windows[truck_id].keys()):
-            if w_start < current_window:
-                flush_window(truck_id, w_start, windows[truck_id][w_start])
+        # Flush any older windows for this truck that we've now moved past
+        for w_start in get_windows_for_truck(truck_id):
+            if w_start < window_start:
+                flush_window(truck_id, w_start)
 
         print(f"Truck {truck_id} | Temp {temperature}°C | Window {window_start} | "
-              f"Events in current window: {len(windows[truck_id][window_start])}")
+              f"Events in current window: {len(temps)} (RocksDB)")
 
 except KeyboardInterrupt:
     print("\nConsumer stopped. Flushing remaining windows...")
-    for truck_id, truck_windows in windows.items():
-        for w_start, temps in truck_windows.items():
-            flush_window(truck_id, w_start, temps)
+    for key in list(db.keys()):
+        truck_id, window_start = key.split(":")
+        flush_window(truck_id, int(window_start))
 
 finally:
     consumer.close()
+    db.close()
+    flushed_db.close()
