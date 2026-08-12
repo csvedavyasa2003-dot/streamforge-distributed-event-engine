@@ -1,0 +1,9 @@
+{
+  "truck_id": "TEST-ALERT-001",
+  "temperature": 38.5,
+  "humidity": 65,
+  "speed": 80,
+  "gps_location": "12.9716,77.5946",
+  "fuel_level": 50,
+  "timestamp": "2026-08-12T12:05:00"
+}

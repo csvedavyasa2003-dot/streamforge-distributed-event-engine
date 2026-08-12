@@ -1,0 +1,5 @@
+{
+  "truck_id": "TEST-INVALID-001",
+  "temperature": "invalid",
+  "humidity": 60
+}
