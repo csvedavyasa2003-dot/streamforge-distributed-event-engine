@@ -8,7 +8,10 @@ from app.services.event_service import (
     get_events,
     get_statistics,
     get_alerts,
-    get_workers
+    get_worker_heartbeats,
+    get_workers,
+    update_worker_heartbeat,
+    get_worker_heartbeats
 )
 router = APIRouter(
     prefix="/events",
@@ -44,3 +47,13 @@ def alerts(db: Session = Depends(get_db)):
 @router.get("/workers")
 def workers():
     return get_workers()
+# POST - Worker Heartbeat
+@router.post("/workers/heartbeat")
+def worker_heartbeat(worker_id: str):
+    return update_worker_heartbeat(worker_id)
+
+
+# GET - Live Worker Heartbeats
+@router.get("/workers/heartbeat")
+def worker_heartbeat_status():
+    return get_worker_heartbeats()

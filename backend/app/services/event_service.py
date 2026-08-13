@@ -82,3 +82,16 @@ def get_workers():
             "processed_events": 980
         }
     ]
+worker_heartbeats = {}
+
+
+def update_worker_heartbeat(worker_id: str):
+    worker_heartbeats[worker_id] = {
+        "worker_id": worker_id,
+        "status": "Running"
+    }
+    return worker_heartbeats[worker_id]
+
+
+def get_worker_heartbeats():
+    return list(worker_heartbeats.values())

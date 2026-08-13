@@ -1,5 +1,13 @@
 import json
+import time
+import uuid
+import threading
+from datetime import datetime, timezone
+from collections import defaultdict
+
+import requests
 from confluent_kafka import Consumer
+from rocksdict import Rdict
 
 conf = {
     'bootstrap.servers': 'localhost:9092',
@@ -8,19 +16,105 @@ conf = {
 }
 
 consumer = Consumer(conf)
-
 consumer.subscribe(['truck-events'])
-# Worker state
-total_events = 0
-total_temperature = 0
 
-highest_temperature = float("-inf")
-lowest_temperature = float("inf")
+API_URL = "http://localhost:8000/events/"
+WINDOW_SECONDS = 300  # 5 minutes
 
-alert_count = 0
+# --- Worker heartbeat setup ---
+WORKER_ID = f"worker-{uuid.uuid4().hex[:8]}"
+HEARTBEAT_URL = "http://localhost:8000/events/workers/heartbeat"
+HEARTBEAT_INTERVAL = 5  # seconds
 
 
-print("Listening for truck events... Press Ctrl+C to stop.")
+def send_heartbeats():
+    while True:
+        try:
+            requests.post(HEARTBEAT_URL, params={"worker_id": WORKER_ID}, timeout=2)
+        except requests.exceptions.RequestException:
+            pass
+        time.sleep(HEARTBEAT_INTERVAL)
+
+
+heartbeat_thread = threading.Thread(target=send_heartbeats, daemon=True)
+heartbeat_thread.start()
+
+print(f"Worker ID: {WORKER_ID}")
+
+# --- RocksDB state store — persists window data to disk, survives restarts ---
+db = Rdict("rocksdb_state")
+flushed_db = Rdict("rocksdb_flushed")
+
+
+def get_window_start(timestamp_str):
+    dt = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+    epoch = int(dt.timestamp())
+    return epoch - (epoch % WINDOW_SECONDS)
+
+
+def make_key(truck_id, window_start):
+    return f"{truck_id}:{window_start}"
+
+
+def add_event_to_window(truck_id, window_start, temperature):
+    key = make_key(truck_id, window_start)
+    temps = db.get(key, [])
+    temps.append(temperature)
+    db[key] = temps
+    return temps
+
+
+def get_windows_for_truck(truck_id):
+    prefix = f"{truck_id}:"
+    result = []
+    for key in db.keys():
+        if key.startswith(prefix):
+            window_start = int(key.split(":")[1])
+            result.append(window_start)
+    return result
+
+
+def flush_window(truck_id, window_start):
+    key = make_key(truck_id, window_start)
+
+    if flushed_db.get(key):
+        return
+
+    temps = db.get(key)
+    if not temps:
+        return
+
+    flushed_db[key] = True
+
+    avg_temp = sum(temps) / len(temps)
+    window_time = datetime.fromtimestamp(window_start, tz=timezone.utc).isoformat()
+
+    print(f"\n📊 WINDOW CLOSED — Truck {truck_id}")
+    print(f"   Window start : {window_time}")
+    print(f"   Events       : {len(temps)}")
+    print(f"   Avg temp     : {avg_temp:.2f}°C")
+    print(f"   (persisted via RocksDB)")
+
+    payload = {
+        "truck_id": str(truck_id),
+        "temperature": round(avg_temp, 2),
+        "humidity": 0,
+        "speed": 0,
+        "gps_location": "windowed-aggregate",
+        "fuel_level": 0,
+        "timestamp": window_time,
+    }
+
+    try:
+        requests.post(API_URL, json=payload, timeout=2)
+    except requests.exceptions.RequestException as e:
+        print("Failed to save windowed result:", e)
+
+    del db[key]
+
+
+print(f"Listening for truck events (windowed mode, RocksDB-backed)... Worker: {WORKER_ID}")
+print("Press Ctrl+C to stop.")
 
 try:
     while True:
@@ -34,49 +128,43 @@ try:
             continue
 
         event = json.loads(msg.value().decode("utf-8"))
-
+        truck_id = event["truck_id"]
         temperature = event["temperature"]
+        timestamp = event["timestamp"]
 
-        total_events += 1
-        total_temperature += temperature
+        # --- 1. Windowed aggregation (RocksDB-backed) ---
+        window_start = get_window_start(timestamp)
+        temps = add_event_to_window(truck_id, window_start, temperature)
 
-        if temperature > highest_temperature:
-            highest_temperature = temperature
+        for w_start in get_windows_for_truck(truck_id):
+            if w_start < window_start:
+                flush_window(truck_id, w_start)
 
-        if temperature < lowest_temperature:
-            lowest_temperature = temperature
+        # --- 2. Also save the raw event immediately, so dashboard stats stay live ---
+        raw_payload = {
+            "truck_id": str(truck_id),
+            "temperature": temperature,
+            "humidity": event.get("humidity", 0),
+            "speed": event.get("speed", 0),
+            "gps_location": json.dumps(event.get("gps_location", {})),
+            "fuel_level": event.get("fuel_level", 0),
+            "timestamp": timestamp,
+        }
+        try:
+            requests.post(API_URL, json=raw_payload, timeout=2)
+        except requests.exceptions.RequestException as e:
+            print("Failed to save raw event to API:", e)
 
-        average_temperature = total_temperature / total_events
-
-        if temperature > 35:
-            alert_count += 1
-
-            print("\n🚨 HIGH TEMPERATURE ALERT!")
-            print(f"Truck ID    : {event['truck_id']}")
-            print(f"Temperature : {temperature} °C")
-        
-
-        print("\nReceived Event")
-        print(f"Truck ID     : {event['truck_id']}")
-        print(f"Temperature  : {event['temperature']} °C")
-        print(f"Humidity     : {event['humidity']} %")
-        print(f"Speed        : {event['speed']} km/h")
-        print(f"Fuel Level   : {event['fuel_level']} %")
-        print(f"GPS          : {event['gps_location']}")
-        print(f"Timestamp    : {event['timestamp']}")
-
-
-        print("\n----- Worker Statistics -----")
-        print(f"Total Events        : {total_events}")
-        print(f"Average Temperature : {average_temperature:.2f} °C")
-        print(f"Highest Temperature : {highest_temperature} °C")
-        print(f"Lowest Temperature  : {lowest_temperature} °C")
-        print(f"High Temp Alerts    : {alert_count}")
-        print("-----------------------------")
+        print(f"Truck {truck_id} | Temp {temperature}°C | Window {window_start} | "
+              f"Events in current window: {len(temps)} (RocksDB) | Worker: {WORKER_ID}")
 
 except KeyboardInterrupt:
-    print("\nConsumer stopped.")
+    print("\nConsumer stopped. Flushing remaining windows...")
+    for key in list(db.keys()):
+        truck_id, window_start = key.split(":")
+        flush_window(truck_id, int(window_start))
 
 finally:
     consumer.close()
-    
+    db.close()
+    flushed_db.close()
