@@ -237,3 +237,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# RocksDB local runtime state
+rocksdb_state/
+rocksdb_flushed/
+backend/consumer/rocksdb_state/
+backend/consumer/rocksdb_flushed/
