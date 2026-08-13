@@ -40,6 +40,6 @@ if __name__ == "__main__":
                     callback=delivery_report
                 )
             producer.flush()
-            time.sleep(10)
+            time.sleep(1)
     except KeyboardInterrupt:
         print("Stopped.")

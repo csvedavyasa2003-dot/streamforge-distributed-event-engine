@@ -1,4 +1,7 @@
 import json
+import time
+import uuid
+import threading
 from datetime import datetime, timezone
 from collections import defaultdict
 
@@ -18,10 +21,28 @@ consumer.subscribe(['truck-events'])
 API_URL = "http://localhost:8000/events/"
 WINDOW_SECONDS = 300  # 5 minutes
 
-# RocksDB state store — persists window data to disk, survives restarts
-db = Rdict("rocksdb_state")
+# --- Worker heartbeat setup ---
+WORKER_ID = f"worker-{uuid.uuid4().hex[:8]}"
+HEARTBEAT_URL = "http://localhost:8000/events/workers/heartbeat"
+HEARTBEAT_INTERVAL = 5  # seconds
 
-# Tracks which windows have already been flushed (also persisted)
+
+def send_heartbeats():
+    while True:
+        try:
+            requests.post(HEARTBEAT_URL, params={"worker_id": WORKER_ID}, timeout=2)
+        except requests.exceptions.RequestException:
+            pass
+        time.sleep(HEARTBEAT_INTERVAL)
+
+
+heartbeat_thread = threading.Thread(target=send_heartbeats, daemon=True)
+heartbeat_thread.start()
+
+print(f"Worker ID: {WORKER_ID}")
+
+# --- RocksDB state store — persists window data to disk, survives restarts ---
+db = Rdict("rocksdb_state")
 flushed_db = Rdict("rocksdb_flushed")
 
 
@@ -44,7 +65,6 @@ def add_event_to_window(truck_id, window_start, temperature):
 
 
 def get_windows_for_truck(truck_id):
-    """Returns all window_start values currently stored for a given truck."""
     prefix = f"{truck_id}:"
     result = []
     for key in db.keys():
@@ -90,11 +110,11 @@ def flush_window(truck_id, window_start):
     except requests.exceptions.RequestException as e:
         print("Failed to save windowed result:", e)
 
-    # Clean up the flushed window's raw data from the state store
     del db[key]
 
 
-print("Listening for truck events (windowed mode, RocksDB-backed)... Press Ctrl+C to stop.")
+print(f"Listening for truck events (windowed mode, RocksDB-backed)... Worker: {WORKER_ID}")
+print("Press Ctrl+C to stop.")
 
 try:
     while True:
@@ -112,16 +132,31 @@ try:
         temperature = event["temperature"]
         timestamp = event["timestamp"]
 
+        # --- 1. Windowed aggregation (RocksDB-backed) ---
         window_start = get_window_start(timestamp)
         temps = add_event_to_window(truck_id, window_start, temperature)
 
-        # Flush any older windows for this truck that we've now moved past
         for w_start in get_windows_for_truck(truck_id):
             if w_start < window_start:
                 flush_window(truck_id, w_start)
 
+        # --- 2. Also save the raw event immediately, so dashboard stats stay live ---
+        raw_payload = {
+            "truck_id": str(truck_id),
+            "temperature": temperature,
+            "humidity": event.get("humidity", 0),
+            "speed": event.get("speed", 0),
+            "gps_location": json.dumps(event.get("gps_location", {})),
+            "fuel_level": event.get("fuel_level", 0),
+            "timestamp": timestamp,
+        }
+        try:
+            requests.post(API_URL, json=raw_payload, timeout=2)
+        except requests.exceptions.RequestException as e:
+            print("Failed to save raw event to API:", e)
+
         print(f"Truck {truck_id} | Temp {temperature}°C | Window {window_start} | "
-              f"Events in current window: {len(temps)} (RocksDB)")
+              f"Events in current window: {len(temps)} (RocksDB) | Worker: {WORKER_ID}")
 
 except KeyboardInterrupt:
     print("\nConsumer stopped. Flushing remaining windows...")

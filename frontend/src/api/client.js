@@ -6,6 +6,7 @@ const client = axios.create({
   baseURL: BASE_URL,
   timeout: 5000,
 })
+export const resetEvents = () => client.delete('/events/reset')
 
 export const getStats = () => client.get('/events/stats')
 export const getEvents = () => client.get('/events/')

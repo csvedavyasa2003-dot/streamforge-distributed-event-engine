@@ -5,6 +5,7 @@ import LiveWindows from '../components/LiveWindows.jsx'
 import TemperatureChart from '../components/TemperatureChart.jsx'
 import ThroughputChart from '../components/ThroughputChart.jsx'
 import EventsTable from '../components/EventsTable.jsx'
+import { useState } from 'react'
 import { usePolling } from '../hooks/usePolling.js'
 import {
   getStats,
@@ -12,14 +13,15 @@ import {
   getEvents,
   getAlerts,
   getLiveWindows,
+  resetEvents,
 } from '../api/client.js'
 
 export default function DashboardPage() {
-  const { data: stats, loading: statsLoading, error: statsError } = usePolling(getStats, 4000)
-  const { data: workers, loading: workersLoading } = usePolling(getWorkers, 8000)
-  const { data: events, loading: eventsLoading } = usePolling(getEvents, 5000)
-  const { data: alerts } = usePolling(getAlerts, 6000)
-  const { data: liveWindows, loading: liveWindowsLoading } = usePolling(getLiveWindows, 2000)
+  const { data: stats, loading: statsLoading, error: statsError } = usePolling(getStats, 2000)
+  const { data: workers, loading: workersLoading } = usePolling(getWorkers, 3000)
+  const { data: events, loading: eventsLoading } = usePolling(getEvents, 2000)
+  const { data: alerts } = usePolling(getAlerts, 3000)
+  const { data: liveWindows, loading: liveWindowsLoading } = usePolling(getLiveWindows, 1500)
 
   if (statsError) {
     return (
@@ -54,15 +56,48 @@ export default function DashboardPage() {
     time: e.timestamp ? e.timestamp.slice(11, 19) : `#${e.id}`,
     avgTemp: e.temperature,
   }))
+const BUCKET_SECONDS = 10
+const bucketMap = {}
 
-  const throughputMap = {}
-  eventsList.slice(-20).forEach((e) => {
-    throughputMap[e.truck_id] = (throughputMap[e.truck_id] || 0) + 1
-  })
-  const throughputSeries = Object.entries(throughputMap).map(([truckId, count]) => ({
-    time: `Truck ${truckId}`,
-    eventsPerSec: count,
-  }))
+eventsList.forEach((e) => {
+  if (!e.timestamp) return
+  const epoch = Math.floor(new Date(e.timestamp).getTime() / 1000)
+  const bucketStart = epoch - (epoch % BUCKET_SECONDS)
+  bucketMap[bucketStart] = (bucketMap[bucketStart] || 0) + 1
+})
+
+const sortedBuckets = Object.entries(bucketMap)
+  .map(([bucketStart, count]) => ({ bucketStart: Number(bucketStart), count }))
+  .sort((a, b) => a.bucketStart - b.bucketStart)
+  .slice(-15) // last 15 buckets = last ~2.5 minutes
+
+const throughputSeries = sortedBuckets.map((b) => ({
+  time: new Date(b.bucketStart * 1000).toLocaleTimeString('en-US', {
+    hour12: false,
+    minute: '2-digit',
+    second: '2-digit',
+  }),
+  eventsPerSec: b.count,
+}))
+  const [resetting, setResetting] = useState(false)
+
+const handleReset = async () => {
+  if (!window.confirm('This will clear all recorded events. Continue?')) return
+  setResetting(true)
+  try {
+    await resetEvents()
+  } catch (err) {
+    console.error('Reset failed:', err)
+  } finally {
+    setResetting(false)
+  }
+}
+
+<div className="dashboard-toolbar">
+  <button className="reset-btn" onClick={handleReset} disabled={resetting}>
+    {resetting ? 'Resetting…' : '↺ Reset Demo Data'}
+  </button>
+</div>
 
   return (
     <div className="dashboard">
