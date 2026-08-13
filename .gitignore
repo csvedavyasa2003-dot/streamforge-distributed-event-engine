@@ -238,4 +238,3 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-backend/rocksdb_flushed/
