@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.models.event import Event
 import time
 import uuid
+import httpx
 
 from app.database.connection import get_db
 from app.schemas.event import EventCreate, EventResponse
@@ -104,3 +105,38 @@ def live_workers():
             "last_seen_seconds_ago": round(age, 1),
         })
     return result
+
+PROMETHEUS_URL = "http://localhost:9090"
+
+
+@router.get("/metrics/summary")
+async def metrics_summary():
+    try:
+        async with httpx.AsyncClient() as client:
+            events_resp = await client.get(
+                f"{PROMETHEUS_URL}/api/v1/query",
+                params={"query": "truck_events_processed_total"}
+            )
+            lag_resp = await client.get(
+                f"{PROMETHEUS_URL}/api/v1/query",
+                params={"query": "truck_processing_lag_seconds"}
+            )
+            throughput_resp = await client.get(
+                f"{PROMETHEUS_URL}/api/v1/query",
+                params={"query": "rate(truck_events_processed_total[1m])"}
+            )
+
+        def extract(resp):
+            data = resp.json().get("data", {}).get("result", [])
+            return [
+                {"labels": r["metric"], "value": float(r["value"][1])}
+                for r in data
+            ]
+
+        return {
+            "events_processed": extract(events_resp),
+            "processing_lag_seconds": extract(lag_resp),
+            "throughput_per_sec": extract(throughput_resp),
+        }
+    except Exception as e:
+        return {"error": f"Could not reach Prometheus: {e}"}
