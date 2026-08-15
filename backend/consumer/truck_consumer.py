@@ -8,6 +8,7 @@ from collections import defaultdict
 import requests
 from confluent_kafka import Consumer
 from rocksdict import Rdict
+from prometheus_client import start_http_server, Counter, Gauge
 
 conf = {
     'bootstrap.servers': 'localhost:9092',
@@ -40,6 +41,21 @@ heartbeat_thread = threading.Thread(target=send_heartbeats, daemon=True)
 heartbeat_thread.start()
 
 print(f"Worker ID: {WORKER_ID}")
+
+# --- Prometheus metrics ---
+events_processed_total = Counter(
+    'truck_events_processed_total', 'Total events processed', ['worker_id']
+)
+current_window_size = Gauge(
+    'truck_window_size', 'Number of events in current window', ['truck_id']
+)
+processing_lag_seconds = Gauge(
+    'truck_processing_lag_seconds', 'Time between event timestamp and processing', ['worker_id']
+)
+
+METRICS_PORT = 8100
+start_http_server(METRICS_PORT)
+print(f"Prometheus metrics available at http://localhost:{METRICS_PORT}/metrics")
 
 # --- RocksDB state store — persists window data to disk, survives restarts ---
 db = Rdict("rocksdb_state")
@@ -154,6 +170,16 @@ try:
             requests.post(API_URL, json=raw_payload, timeout=2)
         except requests.exceptions.RequestException as e:
             print("Failed to save raw event to API:", e)
+
+        # --- 3. Record Prometheus metrics ---
+        events_processed_total.labels(worker_id=WORKER_ID).inc()
+        current_window_size.labels(truck_id=truck_id).set(len(temps))
+
+        event_time = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+        if event_time.tzinfo is None:
+            event_time = event_time.replace(tzinfo=timezone.utc)
+        lag = (datetime.now(timezone.utc) - event_time).total_seconds()
+        processing_lag_seconds.labels(worker_id=WORKER_ID).set(lag)
 
         print(f"Truck {truck_id} | Temp {temperature}°C | Window {window_start} | "
               f"Events in current window: {len(temps)} (RocksDB) | Worker: {WORKER_ID}")
